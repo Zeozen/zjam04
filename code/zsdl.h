@@ -100,7 +100,7 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 #define ASSETBANK_CURSORS_MAX 7
 #define ASSETBANK_SURFACES_MAX 6
 #define ASSETBANK_FONTS_MAX 2
-#define ASSETBANK_STRINGS_MAX 5
+#define ASSETBANK_STRINGS_MAX 40
 
 typedef struct Assets
 {
@@ -158,6 +158,8 @@ void MixSFX();
 #define A_THREE 20 //numbers, usually action or hotbar
 #define A_FOUR 21 //numbers, usually action or hotbar
 #define A_TAB 22
+#define A_RSTRT 23
+#define A_UNDO 24
 
 #define MAX_ACTIONS 32
 typedef enum

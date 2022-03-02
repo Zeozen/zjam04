@@ -11,8 +11,9 @@
 #define T_PLAYER_ATLAS 2
 #define T_PLAYER_CURSOR 3
 //texture paths
-#define T_UI_ATLAS_PATH         "./assets/texture/gui.png"
-#define T_PLAYER_CURSOR_PATH    "./assets/cursor/cur_plr.png"
+#define T_TILE_ATLAS_PATH    "./assets/texture/game.png"
+#define T_UI_ATLAS_PATH      "./assets/texture/gui.png"
+#define T_PLAYER_CURSOR_PATH "./assets/cursor/cur_plr.png"
 
 //cursors
 #define CUR_POINT 0
@@ -41,7 +42,14 @@ typedef enum
 #define SFX_PATH_SELECT "./assets/sound/select.wav"
 #define SFX_PATH_TAP "./assets/sound/tap.wav"
 
+//strings
+#define STR_UNUSED_A
+#define STR_UNUSED_B
+#define STR_UNUSED_C
+#define STR_LEVEL_IDX_0 4
+
 
 #define GUI_DESIGN_PATH "./assets/design/gui.ini"
+#define LEVEL_DESIGN_PATH "./assets/design/levels.ini"
 
 #endif //ASSETS_H

@@ -14,71 +14,7 @@ zGrid* CreateGrid(u16 width, u16 height, r2 origin)
 	new_grid->height 	= height;
 	new_grid->origin 	= origin;
 
-//deserialize
-	FILE* flvl = fopen("./assets/design/level.bin", "rb");
-	u8* buf = malloc(sizeof(u8)*8);
-
-	for (i32 i = 0; i < width * height; i++)
-	{
-		fread(buf, sizeof(u8), 8, flvl);
-		new_grid->cell[i].collision = buf[0];
-		new_grid->cell[i].type = buf[1];
-		new_grid->cell[i].id = buf[2];
-		new_grid->cell[i].sprite_bg = buf[3];
-		new_grid->cell[i].sprite_mg = buf[4];
-		new_grid->cell[i].sprite_fg = buf[5];
-		new_grid->cell[i].unused_0 = buf[6];
-		new_grid->cell[i].unused_1 = buf[7];
-	}
-
-	fclose(flvl);
-	free(buf);
-
-
-/* FLUSHING */
-	// for (i32 y = 0; y < height; y++)
-	// {
-	// 	for (i32 x = 0; x < width; x++)
-	// 	{
-	// 		if (x == 0 || x == width - 1 || y == 0 || y == height -1)
-	// 		{
-	// 			i32 i = x + y * width;
-	// 			new_grid->cell[i].collision = 1;
-	// 			new_grid->cell[i].type = 1;
-	// 			new_grid->cell[i].sprite_mg = MAKE8FROM4(1, 0);
-	// 		}
-	// 		else
-	// 		{
-	// 			i32 i = x + y * width;
-	// 			new_grid->cell[i].collision = 0;
-	// 			new_grid->cell[i].type = 0;
-	// 			new_grid->cell[i].sprite_mg = 0;
-
-	// 		}
-	// 	}
-	// }
-	// 	//save edits
-	// FILE* flushlevel = fopen("./assets/design/level.bin", "wb");
-	// u8* flush_buf = malloc(sizeof(u8)*8);
-
-	// for (i32 i = 0; i < new_grid->width * new_grid->height; i++)
-	// {
-	// 	flush_buf[0] = new_grid->cell[i].collision;
-	// 	flush_buf[1] = new_grid->cell[i].type;
-	// 	flush_buf[2] = new_grid->cell[i].id;
-	// 	flush_buf[3] = new_grid->cell[i].sprite_bg;
-	// 	flush_buf[4] = new_grid->cell[i].sprite_mg;
-	// 	flush_buf[5] = new_grid->cell[i].sprite_fg;
-	// 	flush_buf[6] = new_grid->cell[i].unused_0;
-	// 	flush_buf[7] = new_grid->cell[i].unused_1;
-	// 	fwrite(flush_buf, sizeof(u8), 8, flushlevel);
-	// }
-
-	// fclose(flushlevel);
-	// free(flush_buf);
 /* FLUSHING END*/
-
-
 
 	return new_grid;
 }
@@ -99,67 +35,31 @@ void FreeGrid(zGrid* grid)
 
 void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 {
-// find cels to draw //TODO zooming
-	r2 cel_0_pos = sub_r2(viewport->camera->pos, make_r2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT));
-	r32 min_x = MaxR32(cel_0_pos.x, grid->origin.x);
-	r32 min_y = MaxR32(cel_0_pos.y, grid->origin.y);
-	i2 cel_0 = PosToCel(make_r2(min_x, min_y), grid);
-	i2 cel_1 = i2_add_n(add_i2(cel_0, make_i2(ZSDL_INTERNAL_WIDTH/WORLD_UNIT, ZSDL_INTERNAL_HEIGHT/WORLD_UNIT)), 1);
-	i2 min_1 = make_i2(MinI32(cel_1.x, grid->width), MinI32(cel_1.y, grid->height));
 
-
-
-//draw grid background layer
-	
-	//i2 origin_cam = PosToCam(grid->origin, 1.f, viewport);
-	// SDL_Rect whole_grid = {origin_cam.x, origin_cam.y, grid->width*WORLD_UNIT, grid->height*WORLD_UNIT};
-	// SDL_SetRenderDrawColor(viewport->renderer, 0xff, 0x00, 0x00, 0xff);
-	// SDL_RenderFillRect(viewport->renderer, &whole_grid);
-//draw grid gameplay layer
-	SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
-	for (i32 v = cel_0.y; v < min_1.y; v++)
+	for (i32 v = 0; v < grid->height; v++)
 	{
-		for (i32 u = cel_0.x; u < min_1.x; u++)
+		for (i32 u = 0; u < grid->width; u++)
 		{
 			i2 cel = make_i2(u, v);
-			SDL_Rect src;
-			if (ValidateCel(cel, grid))
-			{
-				i32 idx = CelToIdx(cel, grid);
-				r2 cel_pos = CelToPos(cel, grid);
-				i2 cel_cam = PosToCam(cel_pos, 1.f, viewport);
-				SDL_Rect dst = {cel_cam.x, cel_cam.y, WORLD_UNIT, WORLD_UNIT};
+			SDL_Rect src = {0, 0, WORLD_UNIT, WORLD_UNIT};
+			i32 idx = CelToIdx(cel, grid);
+			r2 cel_pos = CelToPos(cel, grid);
+			i2 cel_cam = PosToCam(cel_pos, 1.f, viewport);
+			SDL_Rect dst = {cel_cam.x, cel_cam.y, WORLD_UNIT, WORLD_UNIT};
 
-				if (grid->cell[idx].sprite_bg)
-				{
-					SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
-					src = CelSpriteSource(idx, grid, SPRITELAYER_BG);
-					src.x = anim * WORLD_UNIT;
-					SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
-				}
-				
-					SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
-					src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
-					src.x = anim * WORLD_UNIT;
-					SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
+			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
+			src = CelSpriteSource(idx, grid, SPRITELAYER_BG);
+			SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
+		
+			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
+			src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
+			SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
 
-			}
+			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_FOREGROUND]);
+			src = CelSpriteSource(idx, grid, SPRITELAYER_FG);
+			SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
 		}
 	}
-	// for (i32 i = 0; i < grid->width*grid->height; i++)
-	// {
-	// 	i2 cel = IdxToCel(i, grid);
-	// 	i32 idx = CelToIdx(cel, grid);
-	// 	SDL_Rect src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
-	// 	r2 cel_pos = CelToPos(cel, grid);
-	// 	i2 cel_cam = PosToCam(cel_pos, 1.f, viewport);
-	// 	SDL_Rect dst = {cel_cam.x, cel_cam.y, WORLD_UNIT, WORLD_UNIT};
-
-	// 	SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
-	// }
-
-// //draw grid foreground layer
-// 	SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_FOREGROUND]);
 }
 
 
@@ -231,14 +131,16 @@ SDL_Rect CelSpriteSource(i32 idx, zGrid* grid, i32 layer)
 	switch (layer)
 	{
 	case SPRITELAYER_BG:
+		src.x = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_COL) * WORLD_UNIT;
 		src.y = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	case SPRITELAYER_MG:
+		src.x = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_COL) * WORLD_UNIT;
 		src.y = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	case SPRITELAYER_FG:
-		// row = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_ROW);
-		// col = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_COL);
+		src.x = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_COL) * WORLD_UNIT;
+		src.y = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	default:
 		break;

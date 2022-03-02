@@ -140,7 +140,7 @@ printf("Game entering state \t%s...\n", GetGamestateName(z->gamestate_new));
 	        		switch (z->gamestate_new) 
 	        		{
 	            		case GAMESTATE_INIT:
-							z->viewport->camera->zoom = ZSDL_CAMERA_MIN_ZOOM;
+							z->viewport->camera->zoom = 1.f;
 						break;
 	            		case GAMESTATE_MAIN:
 							ToggleMenu(&z->menus[MENU_TITLE], ZENABLED);
@@ -270,24 +270,37 @@ int main(int argc, char* argv[])
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-LoadTexture(assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
-LoadTexture(assets, T_PLAYER_CURSOR, viewport->renderer, T_PLAYER_CURSOR_PATH);
+LoadTexture(z->assets, T_TILE_ATLAS, viewport->renderer, T_TILE_ATLAS_PATH);
+LoadTexture(z->assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
+LoadTexture(z->assets, T_PLAYER_CURSOR, viewport->renderer, T_PLAYER_CURSOR_PATH);
 
-LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
+LoadFont(z->assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
 
-LoadCursor(assets, CUR_POINT, CUR_PATH_POINT);
-LoadCursor(assets, CUR_CLICK, CUR_PATH_CLICK);
-LoadCursor(assets, CUR_HAND, CUR_PATH_HAND);
-LoadCursor(assets, CUR_GRAB, CUR_PATH_GRAB);
-LoadCursor(assets, CUR_CROSS, CUR_PATH_CROSS);
+LoadCursor(z->assets, CUR_POINT, CUR_PATH_POINT);
+LoadCursor(z->assets, CUR_CLICK, CUR_PATH_CLICK);
+LoadCursor(z->assets, CUR_HAND, CUR_PATH_HAND);
+LoadCursor(z->assets, CUR_GRAB, CUR_PATH_GRAB);
+LoadCursor(z->assets, CUR_CROSS, CUR_PATH_CROSS);
 
-LoadSound(assets, SFX_SELECT, SFX_PATH_SELECT);
-LoadSound(assets, SFX_TAP, SFX_PATH_TAP);
-LoadSound(assets, SFX_HOVER, SFX_PATH_HOVER);
+LoadSound(z->assets, SFX_SELECT, SFX_PATH_SELECT);
+LoadSound(z->assets, SFX_TAP, SFX_PATH_TAP);
+LoadSound(z->assets, SFX_HOVER, SFX_PATH_HOVER);
+
+//load levels
+GenerateString(z->assets, STR_LEVEL_IDX_0 + 0, "level_0");
+LoadLevel(z->game, 0, z->assets->str[STR_LEVEL_IDX_0]);
+
+GenerateString(z->assets, STR_LEVEL_IDX_0 + 1, "level_1");
+LoadLevel(z->game, 1, z->assets->str[STR_LEVEL_IDX_0 + 1]);
+
+GenerateString(z->assets, STR_LEVEL_IDX_0 + 2, "level_2");
+LoadLevel(z->game, 2, z->assets->str[STR_LEVEL_IDX_0 + 2]);
+
+
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
-SetCursor(viewport, assets, CUR_POINT);
+SetCursor(z->viewport, z->assets, CUR_POINT);
 //START IN FULLSCREEN
 // ToggleFullscreen(z->viewport);
 ComputePixelScale(z->viewport);

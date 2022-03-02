@@ -747,6 +747,8 @@ void CollectInput(Controller* c)
 	c->actions |= ACTION(A_TWO) 	* keystate[SDL_SCANCODE_2];
 	c->actions |= ACTION(A_THREE) 	* keystate[SDL_SCANCODE_3];
 	c->actions |= ACTION(A_TAB) 	* keystate[SDL_SCANCODE_TAB];
+	c->actions |= ACTION(A_RSTRT) 	* keystate[SDL_SCANCODE_R];
+	c->actions |= ACTION(A_UNDO) 	* keystate[SDL_SCANCODE_Z];
 
 }
 
