@@ -15,8 +15,6 @@ i32 UpdateMain    (u32 t, r32 dt, void* engine)
 {
     zEngine* z = (zEngine*)engine;
 
-    static u8 cam_active = 0;
-    static u8 cross_active = 0;
     i2 mloc = MouseLocation(z->controller, z->viewport);
     r2 mpos = CamToPos(mloc, z->viewport);
 
@@ -29,16 +27,15 @@ i32 UpdateMain    (u32 t, r32 dt, void* engine)
         {
             case BTN_PLAY:
             {
-                //TODO set active level to appropriate value, copy struct and enter play
-                z->game->current_level_number = 2;
-                CloseLevel(z->game);
-                OpenLevel(z->game, z->game->current_level_number);
-
-                printf("testing %d\n", z->game->level_active->cell[0].sprite_mg);
+                z->game->current_level_number = 0;
+                CloseActiveLevel(z->game);
+                OpenLevel(z->game, z->game->current_level_number, z->menus, z->assets);
+                SetCursor(z->viewport, z->assets, CUR_POINT);
                 return GAMESTATE_PLAY;
                 break;
             }
 	        case BTN_OPTS:
+                SetCursor(z->viewport, z->assets, CUR_POINT);
                 return GAMESTATE_OPTS;
             break;
 	        case BTN_QUIT:
@@ -46,71 +43,18 @@ i32 UpdateMain    (u32 t, r32 dt, void* engine)
             break;
         }
     }
-
-
-    if (ActionPressed(z->controller, A_WHLU))
-    {
-        if (z->viewport->camera->zoom < ZSDL_CAMERA_MAX_ZOOM)
-            z->viewport->camera->zoom *= 1.1f;
-    }
-        
-    if (ActionPressed(z->controller, A_WHLD))
-    {
-        if (z->viewport->camera->zoom > ZSDL_CAMERA_MIN_ZOOM)
-            z->viewport->camera->zoom *= 0.9f;
-    } 
     
-    static r2 grab_cam_loc = ZERO_R2;
+
     if (ActionPressed(z->controller, A_MB_L))
     {
-        if (cam_active)
-        {
-            SetCursor(z->viewport, z->assets, CUR_GRAB);
-            grab_cam_loc = CamToPos(MouseLocation(z->controller, z->viewport), z->viewport);
-        }
-        else
-        {
-            cross_active = 1;
-            SetCursor(z->viewport, z->assets, CUR_CLICK);
-            SpawnBubble(z->particles, 16, mpos, ZERO_R2, ZERO_R2, 1.f, 0.f, 4, COLOR_RED, (SDL_Color){0xff, 0xff, 0x00, 0x00});
-        }
-        
-    }
-
-    if (ActionHeld(z->controller, A_MB_L))
-    {
-        if (cam_active)
-        {
-            r2 delta = sub_r2(mpos, grab_cam_loc);
-            z->viewport->camera->pos = sub_r2(z->viewport->camera->pos, delta);
-            grab_cam_loc = CamToPos(MouseLocation(z->controller, z->viewport), z->viewport);
-        }
+        SetCursor(z->viewport, z->assets, CUR_CLICK);
+        r32 r = RNG()*3;
+        Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
     }
 
     if (ActionReleased(z->controller, A_MB_L))
-    {
-        if (cam_active)
-        {
-            SetCursor(z->viewport, z->assets, CUR_HAND);
-        }
-        if (cross_active)
-        {
-            cross_active = 0;
-            SetCursor(z->viewport, z->assets, CUR_POINT);
-        }
-    }
-
-    if (ActionPressed(z->controller, A_JUMP))
-    {
-        cam_active = 1;
-        SetCursor(z->viewport, z->assets, CUR_HAND);
-    }
-    if (ActionReleased(z->controller, A_JUMP))
-    {
-        cam_active = 0;
         SetCursor(z->viewport, z->assets, CUR_POINT);
-    }
-
+        
 
     return GAMESTATE_MAIN;
 
@@ -151,6 +95,7 @@ i32 UpdateOptions (u32 t, r32 dt, void* engine)
                 ToggleMenu(&z->menus[MENU_OPTIONS_INPUT], ZENABLED);
             break;
 	        case BTN_OPTS_RETRN:
+                SetCursor(z->viewport, z->assets, CUR_POINT);
                 return GAMESTATE_MAIN;
             break;            
         }
@@ -196,6 +141,15 @@ i32 UpdateOptions (u32 t, r32 dt, void* engine)
         }
     }
 
+    if (ActionPressed(z->controller, A_MB_L))
+    {
+        SetCursor(z->viewport, z->assets, CUR_CLICK);
+        r32 r = RNG()*3;
+        Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
+    }
+
+    if (ActionReleased(z->controller, A_MB_L))
+        SetCursor(z->viewport, z->assets, CUR_POINT);
     
     return GAMESTATE_OPTS;
 
@@ -208,88 +162,171 @@ i32 UpdatePlay    (u32 t, r32 dt, void* engine)
     i2 mloc = MouseLocation(z->controller, z->viewport);
     r2 mpos = CamToPos(mloc, z->viewport);
     i2 mcel = PosToCel(mpos, z->game->level_active);
+    i32 midx = CelToIdx(mcel, z->game->level_active);
+
+    // char dbug[50];
+    // sprintf(dbug, "lvls clear, curr: %d, %d", z->game->levels_cleared, z->game->current_level_number);
+    // DrawTextScreen(z->viewport, z->assets->fon[FONT_ID_ZSYS], COLOR_WHITE, ZERO_I2, dbug);
+
+
+    i32 menu_action_ctrl        = TickMenu(z->menus[MENU_CONTROLS], mloc, z->controller, z->input);
+    i32 menu_action_nav_prev    = TickMenu(z->menus[MENU_NAV_PREV], mloc, z->controller, z->input);
+    i32 menu_action_nav_next    = TickMenu(z->menus[MENU_NAV_NEXT], mloc, z->controller, z->input);
+
+    if (menu_action_ctrl >= 0)
+    {
+        switch (menu_action_ctrl)
+        {
+            case BTN_CTRL_UNDO:
+                UndoMove(z->game, z->assets);
+
+            break;
+	        case BTN_CTRL_RESTART:
+                RestartLevel(z->game, z->menus, z->assets);
+            break;
+        }
+    }
+    if (ActionPressed(z->controller, A_UNDO))
+    {
+        UndoMove(z->game, z->assets);
+        
+    }
+    if (ActionPressed(z->controller, A_RSTRT))
+    {
+        RestartLevel(z->game, z->menus, z->assets);
+        
+    }
+
+    if (menu_action_nav_prev >= 0)
+    {
+        z->game->current_level_number--;
+        CloseActiveLevel(z->game);
+        OpenLevel(z->game, z->game->current_level_number, z->menus, z->assets);
+
+    }
+    if (menu_action_nav_next >= 0)
+    {
+        if (NextLevel(z->game, z->menus, z->assets))
+        {
+            return GAMESTATE_PLAY;
+        }
+        else
+        {
+            return GAMESTATE_EXIT;
+        }
+    }
 
     //TODO add visual indication if you cannot place a unit somewhere, due to cell being conquered or already has a unit
-
-    //only progress if board is not invalid, if invalid we need to undo or restart to progress
-    if (z->game->board_invalid == 0)
+    if (z->game->board_cleared)
     {
-        if (ValidateCel(mcel, z->game->level_active))
+        return GAMESTATE_GOAL;
+    }
+    else
+    {
+
+        //only progress if board is not invalid, if invalid we need to undo or restart to progress
+        if (z->game->board_invalid == 0)
         {
-            if (ActionPressed(z->controller, A_MB_L))
+            if (ValidateCel(mcel, z->game->level_active))
             {
-                if (z->game->move_active)
+                if (ActionPressed(z->controller, A_MB_L))
                 {
-                    if ((z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].type == UNIT_NONE) && 
-                    (z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].collision == CELL_STATUS_EMPTY))
+                    if (z->game->move_active)
                     {
-                        if (!i2_equals(z->game->current_move.cell_start, z->game->current_move.cell_end))
+                        if ((z->game->level_active->cell[midx].type == UNIT_NONE) && (z->game->level_active->cell[midx].collision == CELL_FLOOR) && (z->game->level_active->cell[midx].status == CELL_STATUS_FREE))
                         {
-                            PerformMove(z->game, mcel);
-                            SetCursor(z->viewport, z->assets, CUR_POINT);
+                            if (!i2_equals(z->game->current_move.cell_start, z->game->current_move.cell_end))
+                            {
+                                PerformMove(z->game, mcel, z->assets);
+                                SetCursor(z->viewport, z->assets, CUR_POINT);
+                                
+
+                            }
+                            else
+                            {
+                                CancelMove(z->game, z->assets);
+                                SetCursor(z->viewport, z->assets, CUR_POINT);
+                                
+                            }
                         }
                         else
                         {
-                            CancelMove(z->game);
-                            SetCursor(z->viewport, z->assets, CUR_POINT);    
+                            CancelMove(z->game, z->assets);
+                            SetCursor(z->viewport, z->assets, CUR_POINT);
+                            
                         }
                     }
                     else
                     {
-                        CancelMove(z->game);
-                        SetCursor(z->viewport, z->assets, CUR_POINT);
+                        if (z->game->level_active->cell[midx].collision == CELL_HAS_UNIT)
+                        {
+                            StartMove(z->game, mcel, z->assets);
+                            SetCursor(z->viewport, z->assets, CUR_GRAB);
+                            
+                        }
+                        else
+                        {
+                            SetCursor(z->viewport, z->assets, CUR_CLICK);
+                            r32 r = RNG()*3;
+                            Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
+
+
+                        }
                     }
                 }
-                else
+
+
+
+                if (!z->game->move_active)
                 {
-                    if ((z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].type > UNIT_NONE) && 
-                    (z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].collision == CELL_STATUS_HAS_UNIT))
+                    if (z->game->level_active->cell[midx].collision == CELL_HAS_UNIT)
                     {
-                        StartMove(z->game, mcel);
-                        SetCursor(z->viewport, z->assets, CUR_GRAB);
+                        SetCursor(z->viewport, z->assets, CUR_HAND);
+                    }
+                    else
+                    {
+                        if (ActionReleased(z->controller, A_MB_L))
+                        {
+                            SetCursor(z->viewport, z->assets, CUR_POINT);
+                        }
                     }
                 }
             }
-            if (!z->game->move_active)
+            else
             {
-                if ((z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].type > UNIT_NONE) && 
-                (z->game->level_active->cell[CelToIdx(mcel, z->game->level_active)].collision == CELL_STATUS_HAS_UNIT))
+                if (z->game->move_active)
                 {
-                    SetCursor(z->viewport, z->assets, CUR_HAND);
+                    if (ActionPressed(z->controller, A_MB_L))
+                    {
+                        CancelMove(z->game, z->assets);
+                        SetCursor(z->viewport, z->assets, CUR_POINT);
+                        
+                    }
                 }
                 else
                 {
-                    SetCursor(z->viewport, z->assets, CUR_POINT);
+                    if (GET8IN64(z->viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR) == CUR_HAND)
+                    {
+                        SetCursor(z->viewport, z->assets, CUR_POINT);
+                    }
+                    if (ActionPressed(z->controller, A_MB_L))
+                    {
+                        SetCursor(z->viewport, z->assets, CUR_CLICK);
+                        r32 r = RNG()*3;
+                        Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
+                    }
+
+                    if (ActionReleased(z->controller, A_MB_L))
+                        SetCursor(z->viewport, z->assets, CUR_POINT);
                 }
             }
         }
         else
         {
-            if (z->game->move_active)
-            {
-                if (ActionPressed(z->controller, A_MB_L))
-                {
-                    CancelMove(z->game);
-                    SetCursor(z->viewport, z->assets, CUR_POINT);
-                }
-            }
-            else
-            {
-                SetCursor(z->viewport, z->assets, CUR_POINT);
-            }
+            return GAMESTATE_LOSE;
         }
     }
 
-
-    if (ActionPressed(z->controller, A_RSTRT))
-    {
-        RestartLevel(z->game);
-    }
-
-    if (ActionPressed(z->controller, A_UNDO))
-    {
-        UndoMove(z->game);
-    }
 
     return GAMESTATE_PLAY;
 }
@@ -305,17 +342,140 @@ i32 UpdateEvent   (u32 t, r32 dt, void* engine)
 /*-------------------------------------------------*/
 i32 UpdateLose    (u32 t, r32 dt, void* engine)
 {
-    // zEngine* z = (zEngine*)engine;
+    zEngine* z = (zEngine*)engine;
 
-    return GAMESTATE_EXIT;
+    i2 mloc = MouseLocation(z->controller, z->viewport);
+
+    i32 menu_action_ctrl        = TickMenu(z->menus[MENU_CONTROLS], mloc, z->controller, z->input);
+    i32 menu_action_nav_prev    = TickMenu(z->menus[MENU_NAV_PREV], mloc, z->controller, z->input);
+    i32 menu_action_nav_next    = TickMenu(z->menus[MENU_NAV_NEXT], mloc, z->controller, z->input);
+
+    if (menu_action_ctrl >= 0)
+    {
+        switch (menu_action_ctrl)
+        {
+            case BTN_CTRL_UNDO:
+                UndoMove(z->game, z->assets);
+                return GAMESTATE_PLAY;
+            break;
+	        case BTN_CTRL_RESTART:
+                RestartLevel(z->game, z->menus, z->assets);
+                return GAMESTATE_PLAY;
+            break;
+        }
+    }
+
+    if (menu_action_nav_prev >= 0)
+    {
+        z->game->current_level_number--;
+        CloseActiveLevel(z->game);
+        OpenLevel(z->game, z->game->current_level_number, z->menus, z->assets);
+        return GAMESTATE_PLAY;
+    }
+    if (menu_action_nav_next >= 0)
+    {
+        if (NextLevel(z->game, z->menus, z->assets))
+        {
+            return GAMESTATE_PLAY;
+        }
+        else
+        {
+            return GAMESTATE_EXIT;
+        }
+    }
+
+    if (ActionPressed(z->controller, A_MB_L))
+    {
+        SetCursor(z->viewport, z->assets, CUR_CLICK);
+        r32 r = RNG()*3;
+        Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
+    }
+
+    if (ActionReleased(z->controller, A_MB_L))
+        SetCursor(z->viewport, z->assets, CUR_POINT);
+
+    if (ActionPressed(z->controller, A_UNDO))
+    {
+        UndoMove(z->game, z->assets);
+        return GAMESTATE_PLAY;
+    }
+    if (ActionPressed(z->controller, A_RSTRT))
+    {
+        RestartLevel(z->game, z->menus, z->assets);
+        return GAMESTATE_PLAY;
+    }
+
+    return GAMESTATE_LOSE;
 }
 
 /*-------------------------------------------------*/
 i32 UpdateGoal    (u32 t, r32 dt, void* engine)
 {
-    // zEngine* z = (zEngine*)engine;
+    zEngine* z = (zEngine*)engine;
 
-    return GAMESTATE_EXIT;
+    i2 mloc = MouseLocation(z->controller, z->viewport);
+
+    i32 menu_action_ctrl        = TickMenu(z->menus[MENU_CONTROLS], mloc, z->controller, z->input);
+    i32 menu_action_nav_prev    = TickMenu(z->menus[MENU_NAV_PREV], mloc, z->controller, z->input);
+    i32 menu_action_nav_next    = TickMenu(z->menus[MENU_NAV_NEXT], mloc, z->controller, z->input);
+
+    if (menu_action_ctrl >= 0)
+    {
+        switch (menu_action_ctrl)
+        {
+            case BTN_CTRL_UNDO:
+                UndoMove(z->game, z->assets);
+                return GAMESTATE_PLAY;
+            break;
+	        case BTN_CTRL_RESTART:
+                RestartLevel(z->game, z->menus, z->assets);
+                return GAMESTATE_PLAY;
+            break;
+        }
+    }
+
+    if (menu_action_nav_prev >= 0)
+    {
+        z->game->current_level_number--;
+        CloseActiveLevel(z->game);
+        OpenLevel(z->game, z->game->current_level_number, z->menus, z->assets);
+        return GAMESTATE_PLAY;
+    }
+    if (menu_action_nav_next >= 0)
+    {
+        if (NextLevel(z->game, z->menus, z->assets))
+        {
+            return GAMESTATE_PLAY;
+        }
+        else
+        {
+            return GAMESTATE_EXIT;
+        }
+    }
+
+    if (ActionPressed(z->controller, A_MB_L))
+    {
+        SetCursor(z->viewport, z->assets, CUR_CLICK);
+        r32 r = RNG()*3;
+        Mix_PlayChannel(SFX_TAP_01 + (i32)r, z->assets->sfx[SFX_TAP_01 + (i32)r], 0);
+    }
+
+    if (ActionReleased(z->controller, A_MB_L))
+        SetCursor(z->viewport, z->assets, CUR_POINT);
+
+    if (ActionPressed(z->controller, A_UNDO))
+    {
+        UndoMove(z->game, z->assets);
+        return GAMESTATE_PLAY;
+    }
+    if (ActionPressed(z->controller, A_RSTRT))
+    {
+        RestartLevel(z->game, z->menus, z->assets);
+        return GAMESTATE_PLAY;
+    }
+
+
+    return GAMESTATE_GOAL;
 }
 
 /*-------------------------------------------------*/

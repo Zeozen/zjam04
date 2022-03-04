@@ -16,7 +16,7 @@ typedef struct
     u8 sprite_bg;
     u8 sprite_mg;
     u8 sprite_fg;
-    u8 unused_0;
+    u8 status;
     u8 unused_1;
 } Cell;
 

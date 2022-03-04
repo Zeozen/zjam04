@@ -3,6 +3,7 @@
 
 #include "zmath.h"
 #include "zgrid.h"
+#include "zsdl.h"
 
 //UNIT TYPES, stores in zgrid->cell->type
 typedef enum eUnitTypes
@@ -27,11 +28,14 @@ typedef enum eUnitTypes
     UNIT_QUEEN,
 } eUnitTypes;
 
+#define MAX_CONQUERED_CELLS 64
 typedef struct 
 {
     i2 cell_start;
     i2 cell_end;
     eUnitTypes unit_type;
+    i2 conquered_cells[MAX_CONQUERED_CELLS];
+    i32 num_conquered;
 } Move;
 
 #define NUMBER_OF_GAMESTATES 9
@@ -48,8 +52,8 @@ typedef enum
     GAMESTATE_EXIT,
 } Gamestate;
 
-#define MAX_LEVELS 32
-#define MAX_UNDOS 256
+#define MAX_LEVELS 64
+#define MAX_UNDOS 128
 typedef struct Game
 {
     u32 levels_cleared;
@@ -60,17 +64,25 @@ typedef struct Game
     Move current_move;
     Move* move_stack[MAX_UNDOS];
     u32 last_move_idx;
+    i32 num_levels;
     zGrid* levels[MAX_LEVELS];
     zGrid* level_active;
 } Game;
 
-//CELL STATUS, stores in zgrid->cell->collision
+
+//zgrid->cell->collision
+typedef enum eCellCollision
+{
+    CELL_WALL,
+    CELL_FLOOR,
+    CELL_HAS_UNIT,
+    CELL_HAS_UNIT_MOVED,
+} eCellCollision;
+
+//zgrid->cell->status
 typedef enum eCellStatus
 {
-    CELL_STATUS_WALL,
-    CELL_STATUS_EMPTY,
-    CELL_STATUS_HAS_UNIT,
-    CELL_STATUS_HAS_UNIT_MOVED,
+    CELL_STATUS_FREE,
     CELL_STATUS_IS_CONQUERED,
     CELL_STATUS_IS_DOUBLE_CONQUERED,
 } eCellStatus;
@@ -104,6 +116,7 @@ typedef enum eCellStatus
 
 
 
+
 char* GetGamestateName(Gamestate state);
 
 Game* CreateGame();
@@ -112,17 +125,19 @@ void RestartGame(Game* game);
 
 void LoadLevel(Game* game, u32 level_number, const char* level_name);
 
-void StartMove(Game* game, i2 cell_start);
-void CancelMove(Game* game);
-void PerformMove(Game* game, i2 cell_end);
-void UndoMove(Game* game);
-void RestartLevel(Game* game);
-void CloseLevel(Game* game);
-void OpenLevel(Game* game, u32 level_number);
+void StartMove(Game* game, i2 cell_start, Assets* assets);
+void CancelMove(Game* game, Assets* assets);
+void PerformMove(Game* game, i2 cell_end, Assets* assets);
+void UndoMove(Game* game, Assets* assets);
+void ClearUndoStack(Game* game);
+void RestartLevel(Game* game, Menu* menus, Assets* assets);
+void CloseActiveLevel(Game* game);
+void OpenLevel(Game* game, u32 level_number, Menu* menus, Assets* assets);
+b8 NextLevel(Game* game, Menu* menus, Assets* assets);
+void EvaluateBoard(Game* game, Assets* assets);
 u8 UnitTypeToSprite(eUnitTypes type);
-void UpdatePositionAndPerformConquer(Game* game, i2 move_start, i2 move_end, eUnitTypes unit);
-void UndoConquer(Game* game, i2 move_start, i2 move_end, eUnitTypes unit);
-void EvaluateBoard(Game* game);
-
+void ConquerCell(Game* game, i2 cell);
+void SaveProgress(Game* game);
+void LoadProgress(Game* game);
 
 #endif // GAME_H

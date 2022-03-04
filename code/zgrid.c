@@ -8,7 +8,8 @@ zGrid* CreateGrid(u16 width, u16 height, r2 origin)
 {
 	zGrid* new_grid = malloc(sizeof(zGrid));
 	memset(new_grid, 0, sizeof(zGrid));
-	new_grid->cell = calloc(width*height, sizeof(Cell));
+	new_grid->cell = malloc(sizeof(Cell) * width * height);
+	memset(new_grid->cell, 0, sizeof(Cell) * width * height);
 
 	new_grid->width 	= width;
 	new_grid->height 	= height;
@@ -21,18 +22,19 @@ zGrid* CreateGrid(u16 width, u16 height, r2 origin)
 
 void FreeGrid(zGrid* grid)
 {
-
-
-
 	if (grid != NULL)
 	{
-		free(grid->cell);
-		grid->cell = NULL;
+		if (grid->cell != NULL)
+		{
+			free(grid->cell);
+			grid->cell = NULL;
+		}
 		free(grid);
 		grid = NULL;
 	}
 }
 
+#define CELL_MOVED_OFFSET 96
 void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 {
 
@@ -50,9 +52,25 @@ void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
 			src = CelSpriteSource(idx, grid, SPRITELAYER_BG);
 			SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
+			// if (grid->cell[idx].status == 0)
+			// {
+			// 	SDL_SetRenderDrawColor(viewport->renderer, 255, 255, 255, 255);
+			// 	SDL_RenderDrawRect(viewport->renderer, &dst);
+			// }
+			// if (grid->cell[idx].status == 1)
+			// {
+			// 	SDL_SetRenderDrawColor(viewport->renderer, 0, 0, 255, 255);
+			// 	SDL_RenderDrawRect(viewport->renderer, &dst);
+			// }
+			// if (grid->cell[idx].status == 2) 
+			// {
+			// 	SDL_SetRenderDrawColor(viewport->renderer, 255, 0, 0, 255);
+			// 	SDL_RenderDrawRect(viewport->renderer, &dst);
+			// }
 		
 			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
 			src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
+			src.y = src.y + CELL_MOVED_OFFSET * (grid->cell[idx].collision == 3); //has moved
 			SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
 
 			SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_FOREGROUND]);
@@ -103,16 +121,20 @@ r2 CelToPos(i2 cel, zGrid* grid)
 
 i2 PosToCel(r2 pos, zGrid* grid)
 {
-	// cel = (pos / gridsize) - origin
-	r2 normalized = sub_r2(pos, grid->origin);
-	i2 pix = r2_to_i2(normalized);
-	i2 cel = i2_div_n(pix, WORLD_UNIT);
-	//if (ValidateCel(cel, grid))
-		return cel;
-	//else
-	//	return ZERO_I2;
-	//i2 cel = i2_div_n(r2_to_i2(pos), WORLD_UNIT);
-	//return add_i2(cel, r2_to_i2(grid->origin));
+	if (pos.x < grid->origin.x || pos.y < grid->origin.y)
+	{
+		return make_i2(-1, -1);
+	}
+	else
+	{
+		r2 normalized = sub_r2(pos, grid->origin);
+		i2 pix = r2_to_i2(normalized);
+		i2 cel = i2_div_n(pix, WORLD_UNIT);
+		if (ValidateCel(cel, grid))
+			return cel;
+		else
+			return make_i2(-1, -1);
+	}
 }
 
 u32 PosToIdx( r2 pos, zGrid* grid)

@@ -4,6 +4,7 @@
 #include "update.h"
 #include "render.h"
 #include "zengine.h"
+#include "ini.h"
 // #include "zsdl.h"
 
 #ifdef __EMSCRIPTEN__
@@ -84,19 +85,24 @@ void mainloop(void *arg)
 					}
 				}
 			}
+
+//activate debug rendering target
+			SDL_SetRenderTarget(z->viewport->renderer, z->viewport->render_layer[ZSDL_RENDERLAYER_DBUG]);
+			SDL_SetRenderDrawColor(z->viewport->renderer, 0x00, 0x00, 0x00, 0x00);
+			SDL_RenderClear(z->viewport->renderer);
 			
 /* TRANSITION GAMESTATE BEGIN */
 		    if (z->gamestate_now != z->gamestate_new)
     		{
    				static b8 transition_allowed[NUMBER_OF_GAMESTATES*NUMBER_OF_GAMESTATES] = 
-    			{ //FROM	init    main    opts	play	event,  lose	vict	edit	exit	  TO
+    			{ //FROM	init    main    opts	play	event,  lose	goal	edit	exit	  TO
                 			1,      0,      0,		0,  	0,      0,      0,		0,		0,		//init
                 			1,      1,      1,		1,  	0,      1,      1,      1,		0,		//main
                 			0,      1,      1,		0,  	0,      0,      0,      0,		0,		//opts
                 			0,      1,      0,		1,  	1,      1,      1,      1,		0,		//play
                 			0,      1,      0,		1,  	1,      1,      1,      0,		0,		//event
                 			0,      0,      0,		1,  	1,      1,      0,      0,		0,		//lose
-                			0,      0,      0,		1,  	1,      0,      1,      0,		0,		//vict
+                			0,      0,      0,		1,  	1,      0,      1,      0,		0,		//goal
                 			0,      1,      0,		1,  	0,      0,      0,      1,		0,		//edit
                 			0,      1,      1,		1,  	1,      1,      1,      1,		1		//exit
     			};
@@ -149,12 +155,24 @@ printf("Game entering state \t%s...\n", GetGamestateName(z->gamestate_new));
 							ToggleMenu(&z->menus[MENU_OPTIONS], ZENABLED);
 						break;						
 	            		case GAMESTATE_PLAY:
+							ToggleMenu(&z->menus[MENU_CONTROLS], ZENABLED);
+
 						break;
 	            		case GAMESTATE_EVNT:
+							ToggleMenu(&z->menus[MENU_CONTROLS], ZDISABLED);
 						break;
 	            		case GAMESTATE_LOSE:
+					
 						break;
 	            		case GAMESTATE_GOAL:
+							if (z->game->current_level_number > 0)
+								ToggleMenu(&z->menus[MENU_NAV_PREV], ZENABLED);
+							else
+								ToggleMenu(&z->menus[MENU_NAV_PREV], ZDISABLED);
+							if (z->game->levels_cleared > z->game->current_level_number)
+								ToggleMenu(&z->menus[MENU_NAV_NEXT], ZENABLED);
+							else
+								ToggleMenu(&z->menus[MENU_NAV_NEXT], ZDISABLED);
 						break;
 	            		case GAMESTATE_EDIT:
 						break;
@@ -229,11 +247,14 @@ int main(int argc, char* argv[])
 	viewport->camera = CreateCamera(ZERO_R2);
 	Particles* particles = InitParticles();
 	Menu* menus = malloc(sizeof(Menu) * MAX_MENUS);
-	menus[MENU_TITLE] = CreateMenu("main");
-	menus[MENU_OPTIONS] = CreateMenu("options");
-	menus[MENU_OPTIONS_VIDEO] = CreateMenu("options_video");
-	menus[MENU_OPTIONS_AUDIO] = CreateMenu("options_audio");
-	menus[MENU_OPTIONS_INPUT] = CreateMenu("options_input");
+	menus[MENU_TITLE] 			= CreateMenu("main");
+	menus[MENU_OPTIONS] 		= CreateMenu("options");
+	menus[MENU_OPTIONS_VIDEO] 	= CreateMenu("options_video");
+	menus[MENU_OPTIONS_AUDIO] 	= CreateMenu("options_audio");
+	menus[MENU_OPTIONS_INPUT] 	= CreateMenu("options_input");
+	menus[MENU_CONTROLS] 		= CreateMenu("controls");
+	menus[MENU_NAV_PREV] 		= CreateMenu("nav_prev");
+	menus[MENU_NAV_NEXT] 		= CreateMenu("nav_next");
 
 	zEngine* z = (zEngine*)malloc(sizeof(zEngine));
 	z->viewport = viewport;
@@ -273,6 +294,7 @@ int main(int argc, char* argv[])
 LoadTexture(z->assets, T_TILE_ATLAS, viewport->renderer, T_TILE_ATLAS_PATH);
 LoadTexture(z->assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
 LoadTexture(z->assets, T_PLAYER_CURSOR, viewport->renderer, T_PLAYER_CURSOR_PATH);
+LoadTexture(z->assets, T_BG_ATLAS, viewport->renderer, T_BG_ATLAS_PATH);
 
 LoadFont(z->assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
 
@@ -282,19 +304,48 @@ LoadCursor(z->assets, CUR_HAND, CUR_PATH_HAND);
 LoadCursor(z->assets, CUR_GRAB, CUR_PATH_GRAB);
 LoadCursor(z->assets, CUR_CROSS, CUR_PATH_CROSS);
 
-LoadSound(z->assets, SFX_SELECT, SFX_PATH_SELECT);
-LoadSound(z->assets, SFX_TAP, SFX_PATH_TAP);
-LoadSound(z->assets, SFX_HOVER, SFX_PATH_HOVER);
+LoadSound(z->assets, SFX_HOVER, 			SFX_PATH_HOVER);
+LoadSound(z->assets, SFX_SELECT, 			SFX_PATH_SELECT);
+LoadSound(z->assets, SFX_TAP_01, 			SFX_PATH_TAP_01);
+LoadSound(z->assets, SFX_TAP_02, 			SFX_PATH_TAP_02);
+LoadSound(z->assets, SFX_TAP_03, 			SFX_PATH_TAP_03);
+LoadSound(z->assets, SFX_UNDO_01, 			SFX_PATH_UNDO_01);
+LoadSound(z->assets, SFX_UNDO_02, 			SFX_PATH_UNDO_02);
+LoadSound(z->assets, SFX_UNDO_03, 			SFX_PATH_UNDO_03);
+LoadSound(z->assets, SFX_OPEN_LEVEL, 		SFX_PATH_OPEN_LEVEL);
+LoadSound(z->assets, SFX_LEVEL_COMPLETE, 	SFX_PATH_LEVEL_COMPLETE);
+LoadSound(z->assets, SFX_GOOD_MOVE, 		SFX_PATH_GOOD_MOVE);
+LoadSound(z->assets, SFX_BAD_MOVE, 			SFX_PATH_BAD_MOVE);
+LoadSound(z->assets, SFX_PICKUP, 			SFX_PATH_PICKUP);
+LoadSound(z->assets, SFX_DROP, 				SFX_PATH_DROP);
 
 //load levels
-GenerateString(z->assets, STR_LEVEL_IDX_0 + 0, "level_0");
-LoadLevel(z->game, 0, z->assets->str[STR_LEVEL_IDX_0]);
+ini_t* level_file = ini_load(LEVEL_DESIGN_PATH);
 
-GenerateString(z->assets, STR_LEVEL_IDX_0 + 1, "level_1");
-LoadLevel(z->game, 1, z->assets->str[STR_LEVEL_IDX_0 + 1]);
-
-GenerateString(z->assets, STR_LEVEL_IDX_0 + 2, "level_2");
-LoadLevel(z->game, 2, z->assets->str[STR_LEVEL_IDX_0 + 2]);
+if (!ini_sget(level_file, "meta", "num_levels", "%d", &z->game->num_levels))
+{
+	printf("couldn't determine number of levels from level design file! exiting.. \n");
+	z->game->num_levels = 1;
+	z->gamestate_new = GAMESTATE_EXIT;
+}
+else
+{
+	if (z->game->num_levels > MAX_LEVELS)
+	{
+		printf("level design file has level count %d, which exceeds the max level count of %d\n", z->game->num_levels, MAX_LEVELS);
+		z->gamestate_new = GAMESTATE_EXIT;
+	}
+	else
+	{
+		for (i32 i = 0; i < z->game->num_levels; i++)
+		{
+			char lvl_string[9];
+			sprintf(lvl_string, "level_%d", i);
+			GenerateString(z->assets, STR_LEVEL_IDX_0 + i, lvl_string);
+			LoadLevel(z->game, i, z->assets->str[STR_LEVEL_IDX_0 + i]);
+		}
+	}
+}
 
 
 

@@ -486,6 +486,9 @@ void MixSFX()
 	for (i32 i = 0; i < ASSETBANK_SOUNDS_MAX; i++)
 		Mix_Volume(i, MIX_MAX_VOLUME/2);
 	Mix_VolumeMusic(255);
+	Mix_Volume(SFX_TAP_01, MIX_MAX_VOLUME);
+	Mix_Volume(SFX_TAP_02, MIX_MAX_VOLUME);
+	Mix_Volume(SFX_TAP_03, MIX_MAX_VOLUME);
 
 }
 
@@ -507,7 +510,7 @@ Input* CreateInputManager()
 	input->pcon[PLAYER_1]->actions = 0;
 	input->pcon[PLAYER_1]->active = 1;
 	input->pcon[PLAYER_1]->nav = ZERO_R2;
-	input->pcon[PLAYER_1]->cursor_loc = make_r2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT);
+	input->pcon[PLAYER_1]->cursor_loc = ZERO_R2;
 
 	int num_joysticks = SDL_NumJoysticks();
 		if ((num_joysticks >= 1) && (SDL_IsGameController(0)))
@@ -1228,13 +1231,13 @@ i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller, Input* input)
 						case BUTTON_STATE_PRESSED:
 							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
 							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_pressed;
-							button_was_pressed = i;
 							break;
 						case BUTTON_STATE_HELD:
 							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
 							break;
 						case BUTTON_STATE_RELEASED:
 							menu.buttons[i].src_loc.x = 0;
+							button_was_pressed = i;
 							break;
 					}
 					//printf("BTN from %s to %s\n", ButtonStateName(btn_state_now), ButtonStateName(btn_state_new));
@@ -1375,10 +1378,10 @@ void CleanRenderTargets(Viewport* viewport)
 	SDL_SetRenderDrawColor(viewport->renderer, 0x00, 0x00, 0x00, 0x00);
     SDL_SetRenderTarget(viewport->renderer, NULL);
 	SDL_RenderClear(viewport->renderer);
-	//clear all layers except ui and fade (last two renderlayers), clear those manutally elsewhere
+	//clear all layers except debug which is cleared in logic loop
 	// we do it in reverse so we end up with renderlayer_background to begin next frame with
 
-	for  (i32 i = ZSDL_RENDERLAYERS_MAX - 1; i >= 0; i--) 
+	for  (i32 i = ZSDL_RENDERLAYER_POST_PROCESS; i >= 0; i--) 
 	{
 		SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[i]);
 		SDL_RenderClear(viewport->renderer);

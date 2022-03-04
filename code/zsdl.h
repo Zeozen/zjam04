@@ -27,7 +27,7 @@ typedef struct ZSDL_Font zFont;
 #define ZSDL_INTERNAL_HALFWIDTH 192
 #define ZSDL_INTERNAL_HALFHEIGHT 108
 
-#define ZSDL_RENDERLAYERS_MAX 5
+#define ZSDL_RENDERLAYERS_MAX 6
 typedef enum
 {
     ZSDL_RENDERLAYER_BACKGROUND,
@@ -35,6 +35,7 @@ typedef enum
     ZSDL_RENDERLAYER_FOREGROUND,
     ZSDL_RENDERLAYER_UI,
     ZSDL_RENDERLAYER_POST_PROCESS,
+    ZSDL_RENDERLAYER_DBUG,
 }ZSDL_RENDERLAYER;
 
 
@@ -94,8 +95,8 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#define ASSETBANK_TEXTURES_MAX 16
-#define ASSETBANK_SOUNDS_MAX 8
+#define ASSETBANK_TEXTURES_MAX 8
+#define ASSETBANK_SOUNDS_MAX 16
 #define ASSETBANK_MUSIC_MAX 2
 #define ASSETBANK_CURSORS_MAX 7
 #define ASSETBANK_SURFACES_MAX 6
@@ -344,8 +345,8 @@ void RefreshCursors(Viewport* viewport, Assets* assets);
 #define BUTTON_STATE_POS_NOW	0
 #define BUTTON_STATE_POS_OLD	1
 #define BUTTON_STATE_MAX        6
-#define BUTTON_ARROW_SIZE 16
-#define BUTTON_NINSLICE_DIM 16
+#define BUTTON_ARROW_SIZE 		16
+#define BUTTON_NINSLICE_DIM 	16
 typedef enum
 {
     BUTTON_STATE_INACTIVE   = 0x00,
@@ -381,6 +382,10 @@ typedef enum
 	BTN_OPTS_VIDEO_FSCREEN = 0,
 	BTN_OPTS_AUDIO_MAIN_VOLUME = 0,
 	BTN_OPTS_INPUT_REBIND = 0,
+	BTN_CTRL_UNDO = 0,
+	BTN_CTRL_RESTART,
+	BTN_NAV_PREV = 0,
+	BTN_NAV_NEXT = 0,
 } E_Button_Name;
 #define MAX_BUTTONS 10
 
@@ -391,10 +396,12 @@ typedef enum
 	MENU_OPTIONS_VIDEO,
 	MENU_OPTIONS_AUDIO,
 	MENU_OPTIONS_INPUT,
-	MENU_QUIT_PROMPT,
+	MENU_CONTROLS,
+	MENU_NAV_PREV,
+	MENU_NAV_NEXT,
 } E_Menu_Name;
 
-#define MAX_MENUS 5
+#define MAX_MENUS 8
 typedef struct Menu
 {
 	Button* buttons;
