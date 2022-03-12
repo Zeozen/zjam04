@@ -66,6 +66,7 @@ void RestartGame(Game* game)
 	game->move_active = 0;
 	game->last_move_idx = 0;
 	game->levels_cleared = 0;
+	game->board_invalid = 0;
 	
 }
 
@@ -315,6 +316,9 @@ void ClearUndoStack(Game* game)
 		}
 	}
 	game->last_move_idx = 0;
+	game->current_move.cell_start = make_i2(-1, -1);
+	game->current_move.cell_end = make_i2(-1, -1);
+	game->move_active = 0;
 }
 
 void OpenLevel(Game* game, u32 level_number, Menu* menus, Assets* assets)
@@ -337,15 +341,6 @@ void OpenLevel(Game* game, u32 level_number, Menu* menus, Assets* assets)
 	game->board_cleared = 0;
 	ClearUndoStack(game);
 
-	if (game->current_level_number > 0)
-		ToggleMenu(&menus[MENU_NAV_PREV], ZENABLED);
-	else
-		ToggleMenu(&menus[MENU_NAV_PREV], ZDISABLED);
-	if (game->levels_cleared > game->current_level_number)
-		ToggleMenu(&menus[MENU_NAV_NEXT], ZENABLED);
-	else
-		ToggleMenu(&menus[MENU_NAV_NEXT], ZDISABLED);
-	
 	Mix_PlayChannel(SFX_OPEN_LEVEL, assets->sfx[SFX_OPEN_LEVEL], 0);
 }
 
@@ -391,7 +386,7 @@ void EvaluateBoard(Game* game, Assets* assets)
 				//everything appears to be in order, continue
 				cell_ok_counter++;
 			}
-			if ((status == CELL_STATUS_IS_DOUBLE_CONQUERED))
+			if (status == CELL_STATUS_IS_DOUBLE_CONQUERED)
 			{
 				bad_counter++;
 			}
@@ -401,8 +396,7 @@ void EvaluateBoard(Game* game, Assets* assets)
 	if (cell_ok_counter == (game->level_active->height * game->level_active->width))
 	{
 		game->board_cleared = 1;
-		if (game->current_level_number == game->levels_cleared)
-			game->levels_cleared++;
+		game->levels_cleared |= LEVEL_NUMBER(game->current_level_number);
 		Mix_PlayChannel(SFX_LEVEL_COMPLETE, assets->sfx[SFX_LEVEL_COMPLETE], 0);
 	}
 	else
@@ -410,7 +404,30 @@ void EvaluateBoard(Game* game, Assets* assets)
 		game->board_cleared = 0;
 	}
 
-	if (bad_counter > 0)
+//check if no further moves can be made because of constraints, aka, no free squares
+	u8 free_square_counter = 0;
+	u8 units_still_unmoved_counter = 0;
+	for (i32 y = 0; y < game->level_active->height; y++)
+	{
+		for (i32 x = 0; x < game->level_active->width; x++)
+		{
+			i32 idx = x + y * game->level_active->width;
+			u8 status = game->level_active->cell[idx].status;
+			u8 collision = game->level_active->cell[idx].collision;
+
+			if(status == CELL_STATUS_FREE && collision == CELL_FLOOR) 
+			{
+				free_square_counter++;
+			}
+			if (collision == CELL_HAS_UNIT)
+			{
+				units_still_unmoved_counter++;
+			}
+		}
+	}	
+
+
+	if ((bad_counter > 0) || (free_square_counter == 0 && units_still_unmoved_counter > 0) || (free_square_counter > 0 && units_still_unmoved_counter == 0))
 	{
 		game->board_invalid = 1;
 	}
@@ -932,7 +949,7 @@ void UndoMove(Game* game, Assets* assets)
 				}
 				else if (game->level_active->cell[undo_conquer_idx].status == CELL_STATUS_IS_DOUBLE_CONQUERED)
 				{
-					if ((game->level_active->cell[undo_conquer_idx].collision == CELL_HAS_UNIT))
+					if (game->level_active->cell[undo_conquer_idx].collision == CELL_HAS_UNIT)
 					{
 						game->level_active->cell[undo_conquer_idx].status = CELL_STATUS_FREE;
 						game->level_active->cell[undo_conquer_idx].sprite_bg = CELL_SPR_EMPTY_TILE;
@@ -1012,9 +1029,9 @@ u8 UnitTypeToSprite(eUnitTypes type)
 void SaveProgress(Game* game)
 {
 	FILE* savefile = fopen(SAVEFILE_PATH, "wb");
-	u8* save_buffer = malloc(sizeof(u32));
-	SERIALIZEu32(game->levels_cleared, save_buffer, 0);
-	fwrite(save_buffer, 1, sizeof(u32), savefile);
+	u8* save_buffer = malloc(sizeof(game->levels_cleared));
+	SERIALIZEu64(game->levels_cleared, save_buffer, 0);
+	fwrite(save_buffer, 1, sizeof(game->levels_cleared), savefile);
 	free(save_buffer);
 	fclose(savefile);
 }
@@ -1022,9 +1039,144 @@ void SaveProgress(Game* game)
 void LoadProgress(Game* game)
 {
 	FILE* savefile = fopen(SAVEFILE_PATH, "rb");
-	u8* save_buffer = malloc(sizeof(u32));
-	fread(save_buffer, 1, sizeof(u32), savefile);
-	DESERIALIZEu32(save_buffer, 0, &game->levels_cleared);
+	u8* save_buffer = malloc(sizeof(game->levels_cleared));
+	fread(save_buffer, 1, sizeof(game->levels_cleared), savefile);
+	DESERIALIZEu64(save_buffer, 0, &game->levels_cleared);
 	free(save_buffer);
 	fclose(savefile);
+}
+
+Gamestate MenuLogic(Gamestate current, Game* game, Assets* assets, Menu* menus, Viewport* viewport, Controller* controller)
+{
+	i2 mloc = MouseLocation(controller, viewport);
+	if (game->menu_top_active)
+    {
+        if (mloc.y >= 35)
+        {
+            game->menu_top_active = 0;
+            ToggleMenu(&menus[MENU_CONTROL_TOP], ZDISABLED);
+        }
+    }
+    else
+    {
+        if ((mloc.y <= 20) && (!game->menu_top_active))
+        {
+            game->menu_top_active = 1;
+            ToggleMenu(&menus[MENU_CONTROL_TOP], ZENABLED);
+			if (game->current_level_number == 0)
+				menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_PREV].state = BUTTON_STATE_INACTIVE;
+			if (game->current_level_number == game->num_levels - 1)
+				menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_NEXT].state = BUTTON_STATE_INACTIVE;
+        }
+    }
+    if (game->menu_bot_active)
+    {
+        if (mloc.y <= ZSDL_INTERNAL_HEIGHT - 35)
+        {
+            game->menu_bot_active = 0;
+            ToggleMenu(&menus[MENU_CONTROL_BOT], ZDISABLED);
+        }
+    }
+    else
+    {
+        if ((mloc.y >= ZSDL_INTERNAL_HEIGHT - 35) && (!game->menu_bot_active))
+        {
+            game->menu_bot_active = 1;
+            ToggleMenu(&menus[MENU_CONTROL_BOT], ZENABLED);
+        }
+    }
+
+	i32 menu_action_top = TickMenu(menus[MENU_CONTROL_TOP], mloc, controller);
+
+    if (menu_action_top >= 0)
+    {
+        switch (menu_action_top)
+        {
+            case BTN_CTRL_QUIT:
+                return GAMESTATE_MAIN;
+            break;
+            case BTN_CTRL_PREV:
+                game->current_level_number--;
+                CloseActiveLevel(game);
+                OpenLevel(game, game->current_level_number, menus, assets);
+                SetCursor(viewport, assets, CUR_POINT);
+				if (game->current_level_number == 0)
+					menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_PREV].state = BUTTON_STATE_INACTIVE;
+				else
+					menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_PREV].state = BUTTON_STATE_ACTIVE;
+				if (game->current_level_number == game->num_levels - 1)
+					menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_NEXT].state = BUTTON_STATE_INACTIVE;
+				else
+					menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_NEXT].state = BUTTON_STATE_ACTIVE;
+				return GAMESTATE_PLAY;
+            break;
+            case BTN_CTRL_NEXT:
+                if (NextLevel(game, menus, assets))
+                {
+                    SetCursor(viewport, assets, CUR_POINT);
+					if (game->current_level_number == 0)
+						menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_PREV].state = BUTTON_STATE_INACTIVE;
+					else
+						menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_PREV].state = BUTTON_STATE_ACTIVE;
+					if (game->current_level_number == game->num_levels - 1)
+						menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_NEXT].state = BUTTON_STATE_INACTIVE;
+					else
+						menus[MENU_CONTROL_TOP].buttons[BTN_CTRL_NEXT].state = BUTTON_STATE_ACTIVE;
+					return GAMESTATE_PLAY;
+                }
+                else
+                {
+                    return GAMESTATE_EXIT;
+                }            
+            break;
+        }
+    }
+
+    i32 menu_action_bot = TickMenu(menus[MENU_CONTROL_BOT], mloc, controller);
+    if (menu_action_bot >= 0)
+    {
+        switch (menu_action_bot)
+        {
+            case BTN_CTRL_UNDO:
+                UndoMove(game, assets);
+				return GAMESTATE_PLAY;
+            break;
+	        case BTN_CTRL_RESTART:
+                RestartLevel(game, menus, assets);
+				return GAMESTATE_PLAY;
+            break;
+        }
+    }
+
+	if (ActionPressed(controller, A_ONE))
+	{
+		if (game->current_level_number < game->num_levels - 1)
+		{
+			if (NextLevel(game, menus, assets))
+			{
+				return GAMESTATE_PLAY;
+			}
+			else
+			{
+				return GAMESTATE_EXIT;
+			}     
+		}		
+	}
+	if (ActionPressed(controller, A_TWO))
+	{
+		if (game->current_level_number)
+		{
+			game->current_level_number--;
+			CloseActiveLevel(game);
+			OpenLevel(game, game->current_level_number, menus, assets);
+			SetCursor(viewport, assets, CUR_POINT);
+			return GAMESTATE_PLAY;			
+		}
+	}
+	if (ActionPressed(controller, A_ESC))
+	{
+		SetCursor(viewport, assets, CUR_POINT);
+		return GAMESTATE_MAIN;			
+	}
+	return current;
 }

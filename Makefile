@@ -27,7 +27,7 @@ ifeq ($(MAKECMDGOALS),debug)
 	LDFLAGS += -mconsole
 endif
 endif
-debug: CFLAGS += -g -Og -D DEBUGPRNT
+debug: CFLAGS += -g -Og -D DEBUGPRNT #-Walloc-size-larger-than=1024
 debug: build
 
 release: CFLAGS += -O3

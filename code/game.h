@@ -54,13 +54,16 @@ typedef enum
 
 #define MAX_LEVELS 64
 #define MAX_UNDOS 128
+#define LEVEL_NUMBER(X) ((u64)1 << ((X)))
 typedef struct Game
 {
-    u32 levels_cleared;
+    u64 levels_cleared;
     u32 current_level_number;
     u32 move_active;
     u32 board_invalid;
     u32 board_cleared;
+    u32 menu_top_active;
+    u32 menu_bot_active;
     Move current_move;
     Move* move_stack[MAX_UNDOS];
     u32 last_move_idx;
@@ -139,5 +142,6 @@ u8 UnitTypeToSprite(eUnitTypes type);
 void ConquerCell(Game* game, i2 cell);
 void SaveProgress(Game* game);
 void LoadProgress(Game* game);
+Gamestate MenuLogic(Gamestate current, Game* game, Assets* assets, Menu* menus, Viewport* viewport, Controller* controller);
 
 #endif // GAME_H

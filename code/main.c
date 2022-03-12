@@ -155,24 +155,13 @@ printf("Game entering state \t%s...\n", GetGamestateName(z->gamestate_new));
 							ToggleMenu(&z->menus[MENU_OPTIONS], ZENABLED);
 						break;						
 	            		case GAMESTATE_PLAY:
-							ToggleMenu(&z->menus[MENU_CONTROLS], ZENABLED);
-
 						break;
 	            		case GAMESTATE_EVNT:
-							ToggleMenu(&z->menus[MENU_CONTROLS], ZDISABLED);
 						break;
 	            		case GAMESTATE_LOSE:
 					
 						break;
 	            		case GAMESTATE_GOAL:
-							if (z->game->current_level_number > 0)
-								ToggleMenu(&z->menus[MENU_NAV_PREV], ZENABLED);
-							else
-								ToggleMenu(&z->menus[MENU_NAV_PREV], ZDISABLED);
-							if (z->game->levels_cleared > z->game->current_level_number)
-								ToggleMenu(&z->menus[MENU_NAV_NEXT], ZENABLED);
-							else
-								ToggleMenu(&z->menus[MENU_NAV_NEXT], ZDISABLED);
 						break;
 	            		case GAMESTATE_EDIT:
 						break;
@@ -252,9 +241,8 @@ int main(int argc, char* argv[])
 	menus[MENU_OPTIONS_VIDEO] 	= CreateMenu("options_video");
 	menus[MENU_OPTIONS_AUDIO] 	= CreateMenu("options_audio");
 	menus[MENU_OPTIONS_INPUT] 	= CreateMenu("options_input");
-	menus[MENU_CONTROLS] 		= CreateMenu("controls");
-	menus[MENU_NAV_PREV] 		= CreateMenu("nav_prev");
-	menus[MENU_NAV_NEXT] 		= CreateMenu("nav_next");
+	menus[MENU_CONTROL_TOP]			= CreateMenu("control_panel_top");
+	menus[MENU_CONTROL_BOT]			= CreateMenu("control_panel_bot");
 
 	zEngine* z = (zEngine*)malloc(sizeof(zEngine));
 	z->viewport = viewport;

@@ -58,7 +58,7 @@ Viewport* CreateViewport(const char* window_title)
 	viewport->window =
 		SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
 						 viewport->screen.w, viewport->screen.h,
-						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE /*| SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_GRABBED */);
+						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_GRABBED );
 	if (viewport->window == NULL)
 	{
 		#ifdef DEBUGPRNT
@@ -746,8 +746,8 @@ void CollectInput(Controller* c)
 	c->actions |= ACTION(A_DBUG) 	* keystate[SDL_SCANCODE_F11];
 	c->actions |= ACTION(A_ESC) 	* keystate[SDL_SCANCODE_ESCAPE];
 	c->actions |= ACTION(A_SHFT) 	* keystate[SDL_SCANCODE_LSHIFT];
-	c->actions |= ACTION(A_ONE) 	* keystate[SDL_SCANCODE_1];
-	c->actions |= ACTION(A_TWO) 	* keystate[SDL_SCANCODE_2];
+	c->actions |= ACTION(A_ONE) 	* keystate[SDL_SCANCODE_D];
+	c->actions |= ACTION(A_TWO) 	* keystate[SDL_SCANCODE_A];
 	c->actions |= ACTION(A_THREE) 	* keystate[SDL_SCANCODE_3];
 	c->actions |= ACTION(A_TAB) 	* keystate[SDL_SCANCODE_TAB];
 	c->actions |= ACTION(A_RSTRT) 	* keystate[SDL_SCANCODE_R];
@@ -1142,10 +1142,10 @@ Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const ch
 
 
 
-i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller, Input* input)
+i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller)
 {
 	SDL_Point mpoint = {mouse_location.x, mouse_location.y};
-	SDL_Point p1_pt = {input->pcon[PLAYER_1]->cursor_loc.x, input->pcon[PLAYER_1]->cursor_loc.y};
+	//SDL_Point p1_pt = {input->pcon[PLAYER_1]->cursor_loc.x, input->pcon[PLAYER_1]->cursor_loc.y};
 	//SDL_Point p2_pt = {mouse_location.x, mouse_location.y};
 	i32 button_was_pressed = -1;
 	static b8 transition_allowed[BUTTON_STATE_MAX*BUTTON_STATE_MAX] = 
@@ -1167,17 +1167,17 @@ i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller, Input* input)
 
 		if (btn_state_now) // inactive if 0
 		{
-			if (SDL_PointInRect(&mpoint, &hitbox) || SDL_PointInRect(&p1_pt, &hitbox))
+			if (SDL_PointInRect(&mpoint, &hitbox)) //|| SDL_PointInRect(&p1_pt, &hitbox))
 			{
-				if (ActionPressed(controller, A_MB_L) || (PlayerActionPressed(input->pcon[PLAYER_1], ACT_1)))
+				if (ActionPressed(controller, A_MB_L))// || (PlayerActionPressed(input->pcon[PLAYER_1], ACT_1)))
 				{
 					btn_state_new = BUTTON_STATE_PRESSED;
 				}
-				else if (ActionHeld(controller, A_MB_L) || (PlayerActionHeld(input->pcon[PLAYER_1], ACT_1)))
+				else if (ActionHeld(controller, A_MB_L))// || (PlayerActionHeld(input->pcon[PLAYER_1], ACT_1)))
 				{
 					btn_state_new = BUTTON_STATE_HELD;
 				}
-				else if (ActionReleased(controller, A_MB_L) || (PlayerActionReleased(input->pcon[PLAYER_1], ACT_1)))
+				else if (ActionReleased(controller, A_MB_L))// || (PlayerActionReleased(input->pcon[PLAYER_1], ACT_1)))
 				{
 					btn_state_new = BUTTON_STATE_RELEASED;
 				}
@@ -1221,22 +1221,17 @@ i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller, Input* input)
 						case BUTTON_STATE_INACTIVE:
 							break;
 						case BUTTON_STATE_ACTIVE:
-							menu.buttons[i].src_loc.x = 0;
 							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_normal;
 							break;
 						case BUTTON_STATE_HOVERED:
-							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 3;
 							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_hovered;
 							break;
 						case BUTTON_STATE_PRESSED:
-							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
 							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_pressed;
 							break;
 						case BUTTON_STATE_HELD:
-							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
 							break;
 						case BUTTON_STATE_RELEASED:
-							menu.buttons[i].src_loc.x = 0;
 							button_was_pressed = i;
 							break;
 					}
@@ -1263,7 +1258,25 @@ void DrawMenu(Menu menu, Viewport* viewport, Assets* assets)
 		if (btn_state_now) // inactive if 0
 		{
 			//draw nineslice
-			DrawNineSliced(viewport, assets->tex[T_UI_ATLAS], menu.buttons[i].src_loc, menu.buttons[i].dst_loc, menu.buttons[i].dst_siz, menu.buttons[i].slice_dim);
+			i2 src = menu.buttons[i].src_loc;
+			u32 siz = menu.buttons[i].slice_dim * 3;
+			if (btn_state_now < BUTTON_STATE_HOVERED)
+			{
+				//no modifications
+			}
+			else if (btn_state_now == BUTTON_STATE_HOVERED)
+			{	
+				src.x += siz;
+			}
+			else if (btn_state_now < BUTTON_STATE_RELEASED)
+			{
+				src.x += siz * 2;
+			}
+			else
+			{
+				//no mods
+			}
+			DrawNineSliced(viewport, assets->tex[T_UI_ATLAS], src, menu.buttons[i].dst_loc, menu.buttons[i].dst_siz, menu.buttons[i].slice_dim);
 			// i2 txt_siz = {strlen(menu.buttons[i].txt)*assets->fon[FONT_ID_ZSYS]->siz.x, assets->fon[FONT_ID_ZSYS]->siz.y};
 			SDL_Rect txt_dst = {menu.buttons[i].dst_loc.x, menu.buttons[i].dst_loc.y + menu.buttons[i].txt_offset_y_current, menu.buttons[i].dst_siz.x, menu.buttons[i].dst_siz.y};
 			// {

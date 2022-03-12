@@ -382,10 +382,11 @@ typedef enum
 	BTN_OPTS_VIDEO_FSCREEN = 0,
 	BTN_OPTS_AUDIO_MAIN_VOLUME = 0,
 	BTN_OPTS_INPUT_REBIND = 0,
+	BTN_CTRL_QUIT = 0,
+	BTN_CTRL_NEXT,
+	BTN_CTRL_PREV,
 	BTN_CTRL_UNDO = 0,
 	BTN_CTRL_RESTART,
-	BTN_NAV_PREV = 0,
-	BTN_NAV_NEXT = 0,
 } E_Button_Name;
 #define MAX_BUTTONS 10
 
@@ -396,12 +397,11 @@ typedef enum
 	MENU_OPTIONS_VIDEO,
 	MENU_OPTIONS_AUDIO,
 	MENU_OPTIONS_INPUT,
-	MENU_CONTROLS,
-	MENU_NAV_PREV,
-	MENU_NAV_NEXT,
+	MENU_CONTROL_TOP,
+	MENU_CONTROL_BOT,
 } E_Menu_Name;
 
-#define MAX_MENUS 8
+#define MAX_MENUS 7
 typedef struct Menu
 {
 	Button* buttons;
@@ -415,7 +415,7 @@ typedef struct Menu
 
 Menu CreateMenu(const char* config_section);
 Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const char* text, i8 txt_offset_y_normal, i8 txt_offset_y_hovered, i8 txt_offset_y_pressed);
-i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller, Input* input);
+i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller);
 void DrawMenu(Menu menu, Viewport* viewport, Assets* assets);
 void ToggleMenu(Menu* menu, b8 enable);
 void FreeMenus(Menu* menus);
